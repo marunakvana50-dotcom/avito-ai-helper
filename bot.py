@@ -26,7 +26,7 @@ from telegram.ext import (
     filters,
 )
 
-import claude_client
+import gemini_client
 
 # Простой лог в консоль — чтобы видеть, что бот работает и что идёт не так.
 logging.basicConfig(
@@ -68,7 +68,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         tg_file = await photo.get_file()
         image_bytes = bytes(await tg_file.download_as_bytearray())
 
-        advice = await claude_client.analyze_photo(image_bytes)
+        advice = await gemini_client.analyze_photo(image_bytes)
         await _reply_long(update, advice)
     except Exception:
         logger.exception("Ошибка при разборе фото")
@@ -81,7 +81,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     """Продавец прислал текст — улучшаем описание."""
     await update.message.chat.send_action(ChatAction.TYPING)
     try:
-        improved = await claude_client.improve_description(update.message.text)
+        improved = await gemini_client.improve_description(update.message.text)
         await _reply_long(update, improved)
     except Exception:
         logger.exception("Ошибка при улучшении описания")
