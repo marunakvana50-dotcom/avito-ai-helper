@@ -1,0 +1,4 @@
+# Зависимости проекта. Установка: pip install -r requirements.txt
+python-telegram-bot>=21.0,<22.0
+anthropic>=0.40
+python-dotenv>=1.0
