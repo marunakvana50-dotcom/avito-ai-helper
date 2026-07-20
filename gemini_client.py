@@ -16,8 +16,18 @@ import prompts
 # GEMINI_MODEL. По умолчанию — gemini-3.5-flash (быстро, дёшево, поддерживает фото).
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
+# Необязательно: прокси именно для запросов к Gemini (например, если в твоей
+# стране Gemini API недоступен напрямую). Не влияет на остальной код бота —
+# Telegram по-прежнему работает через обычное сетевое подключение.
+# Формат: socks5://логин:пароль@хост:порт  или  http://логин:пароль@хост:порт
+_proxy_url = os.environ.get("GEMINI_PROXY_URL")
+_http_options = types.HttpOptions(
+    client_args={"proxy": _proxy_url},
+    async_client_args={"proxy": _proxy_url},
+) if _proxy_url else None
+
 # Клиент нейросети. Ключ берётся из переменной окружения GEMINI_API_KEY.
-client = genai.Client()
+client = genai.Client(http_options=_http_options)
 
 
 async def analyze_photo(image_bytes: bytes, media_type: str = "image/jpeg") -> str:
