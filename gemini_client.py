@@ -5,10 +5,11 @@
 нейросетью спрятана сюда, чтобы файл бота (bot.py) оставался простым.
 """
 
+import asyncio
 import os
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 
 import prompts
 
@@ -29,25 +30,38 @@ _http_options = types.HttpOptions(
 # Клиент нейросети. Ключ берётся из переменной окружения GEMINI_API_KEY.
 client = genai.Client(http_options=_http_options)
 
+# Если Gemini временно перегружен (ошибка 503) — сколько раз повторить попытку
+# и сколько секунд ждать между попытками, прежде чем сдаться.
+_MAX_RETRIES = 3
+_RETRY_DELAY_SECONDS = 3
+
+
+async def _generate_with_retry(contents) -> str:
+    """Отправляет запрос к нейросети; при перегрузке (503) повторяет попытку."""
+    last_error: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            response = await client.aio.models.generate_content(
+                model=MODEL,
+                contents=contents,
+                config=types.GenerateContentConfig(max_output_tokens=3000),
+            )
+            return (response.text or "").strip()
+        except errors.ServerError as error:
+            last_error = error
+            if attempt < _MAX_RETRIES - 1:
+                await asyncio.sleep(_RETRY_DELAY_SECONDS)
+    raise last_error
+
 
 async def analyze_photo(image_bytes: bytes, media_type: str = "image/jpeg") -> str:
     """Отправляет фото в нейросеть и возвращает разбор кадра с советами."""
-    response = await client.aio.models.generate_content(
-        model=MODEL,
-        contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type=media_type),
-            prompts.PHOTO_PROMPT,
-        ],
-        config=types.GenerateContentConfig(max_output_tokens=1500),
-    )
-    return (response.text or "").strip()
+    return await _generate_with_retry([
+        types.Part.from_bytes(data=image_bytes, mime_type=media_type),
+        prompts.PHOTO_PROMPT,
+    ])
 
 
 async def improve_description(text: str) -> str:
     """Отправляет описание в нейросеть и возвращает улучшенный вариант."""
-    response = await client.aio.models.generate_content(
-        model=MODEL,
-        contents=prompts.DESCRIPTION_PROMPT + text,
-        config=types.GenerateContentConfig(max_output_tokens=1500),
-    )
-    return (response.text or "").strip()
+    return await _generate_with_retry(prompts.DESCRIPTION_PROMPT + text)
