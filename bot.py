@@ -90,8 +90,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
 
 
-def main() -> None:
-    """Точка входа: собираем бота и запускаем."""
+def build_application() -> Application:
+    """Собирает бота и регистрирует обработчики (без запуска).
+
+    Используется и для локального запуска через long polling (main, ниже),
+    и для вебхука на Vercel (api/webhook.py) — там polling не нужен, Telegram
+    сам присылает апдейты HTTP-запросом.
+    """
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         raise SystemExit(
@@ -105,6 +110,12 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
+    return app
+
+
+def main() -> None:
+    """Точка входа для локального запуска (long polling)."""
+    app = build_application()
     logger.info("Бот запущен. Нажми Ctrl+C, чтобы остановить.")
     app.run_polling()
 

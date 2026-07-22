@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/webhook.py": {
+      "includeFiles": "{bot.py,gemini_client.py,prompts.py}",
+      "maxDuration": 60
+    }
+  }
+}
